@@ -126,27 +126,33 @@ def output_cost_data_text(days: int = 30, hide_account: bool = False, force_refr
                 service_name = service.get('service', 'Unknown')
                 cost = service.get('cost', 0)
                 percentage = (cost / total_cost * 100) if total_cost > 0 else 0
-                print(f"{i:2d}. {service_name:<45} ${cost:>8.2f} ({percentage:5.1f}%)")
+                
+                print(f"{i:2d}. {service_name:<45}   ${cost:>8.2f}   ({percentage:5.1f}%)")
                 
                 # Show detailed breakdown for EC2 - Other
                 if service_name == 'EC2 - Other':
-                    # Show EBS breakdown first
+                    breakdown_items = []
+                    
+                    # Collect EBS breakdown first
                     if (ebs_breakdown_data and 'breakdown' in ebs_breakdown_data and 
                         ebs_breakdown_data['breakdown']):
-                        for breakdown_item in ebs_breakdown_data['breakdown']:
-                            category = breakdown_item.get('category', 'Unknown')
-                            item_cost = breakdown_item.get('cost', 0)
-                            item_percentage = (item_cost / cost * 100) if cost > 0 else 0
-                            print(f"    {category:<45} ${item_cost:>8.2f} ({item_percentage:5.1f}%)")
+                        breakdown_items.extend(ebs_breakdown_data['breakdown'])
                     
-                    # Then show EC2 breakdown
+                    # Then collect EC2 breakdown
                     if (ec2_breakdown_data and 'breakdown' in ec2_breakdown_data and 
                         ec2_breakdown_data['breakdown']):
-                        for breakdown_item in ec2_breakdown_data['breakdown']:
-                            category = breakdown_item.get('category', 'Unknown')
-                            item_cost = breakdown_item.get('cost', 0)
-                            item_percentage = (item_cost / cost * 100) if cost > 0 else 0
-                            print(f"    {category:<45} ${item_cost:>8.2f} ({item_percentage:5.1f}%)")
+                        breakdown_items.extend(ec2_breakdown_data['breakdown'])
+                    
+                    # Display breakdown items with tree formatting
+                    for j, breakdown_item in enumerate(breakdown_items):
+                        category = breakdown_item.get('category', 'Unknown')
+                        item_cost = breakdown_item.get('cost', 0)
+                        
+                        # Determine prefix for breakdown items
+                        is_last_breakdown = (j == len(breakdown_items) - 1)
+                        breakdown_prefix = "└──" if is_last_breakdown else "├──"
+                        
+                        print(f"    {breakdown_prefix} {category:<47} {breakdown_prefix} {item_cost:>6.2f}")
             print("=" * 70)
             print(f"TOTAL COST: ${total_cost:>8.2f}")
             print("=" * 70)
@@ -370,7 +376,7 @@ Environment Variables:
             else:
                 logger.error(f"OS error starting server: {e}")
                 print(f"Error starting server: {e}")
-            sys.exit(1)
+                sys.exit(1)
         except KeyboardInterrupt:
             logger.info("Server shutdown requested by user")
             print("\nShutting down CloudSense...")

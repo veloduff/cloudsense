@@ -79,28 +79,45 @@ source cloudsense-env/bin/activate
    
    **Example CLI Output:**
    ```
-   Gathering AWS cost data...
+   $ cloudsense --hide-acct
    ======================================================================
    CloudSense - AWS Cost Report (30 days)
    ======================================================================
-   Account: 123456789012
-   Date Range: 2024-01-15 to 2024-02-14
+   Account: ***HIDDEN***
+   Date Range: 2025-07-21 to 2025-08-20
    Region: All Regions
-   Services: 8
-   Data Status: FRESH (updating cache)
+   Services: 16
+   Data Status: CACHED at 2025-08-20 12:22
    ----------------------------------------------------------------------
    Service Breakdown:
    ----------------------------------------------------------------------
-    1. EC2 - Other                                   $   45.23 ( 62.1%)
-    2. EC2 - Compute                                 $   18.94 ( 26.0%)
-    3. Amazon S3                                     $    4.12 (  5.7%)
-    4. VPC                                           $    2.88 (  4.0%)
-    5. CloudWatch                                    $    1.02 (  1.4%)
-    6. AWS Backup                                    $    0.41 (  0.6%)
-    7. Amazon EFS                                    $    0.18 (  0.2%)
-    8. Route 53                                      $    0.05 (  0.1%)
+    1. Amazon Registrar                                $   88.00   ( 31.6%)
+    2. EC2 - Other                                     $   66.23   ( 23.7%)
+       ├── EBS gp3 Storage                                 ├──  10.03
+       ├── EBS io2 IOPS                                    ├──   4.25
+       ├── EBS Snapshots                                   ├──   3.23
+       ├── EBS io1 IOPS                                    ├──   1.18
+       ├── EBS io1 Storage                                 ├──   0.91
+       ├── EBS io2 Storage                                 ├──   0.35
+       ├── NAT Gateway                                     ├──  46.15
+       ├── Spot Instances                                  ├──   0.18
+       └── Data Transfer                                   └──   0.13
+    3. EC2 - Compute                                   $   53.97   ( 19.4%)
+    4. AWS Cost Explorer                               $   20.41   (  7.3%)
+    5. Amazon Q                                        $   18.57   (  6.7%)
+    6. Amazon S3                                       $    9.87   (  3.5%)
+    7. Amazon FSx                                      $    8.15   (  2.9%)
+    8. VPC                                             $    5.65   (  2.0%)
+    9. Bedrock: SD 3.5 Large                           $    5.12   (  1.8%)
+   10. Route53                                         $    2.54   (  0.9%)
+   11. Amazon EFS                                      $    0.21   (  0.1%)
+   12. Bedrock: Claude Opus 4                          $    0.11   (  0.0%)
+   13. Bedrock: Claude Sonnet 4                        $    0.04   (  0.0%)
+   14. AWS Backup                                      $    0.02   (  0.0%)
+   15. CloudWatch                                      $    0.00   (  0.0%)
+   16. DynamoDB                                        $    0.00   (  0.0%)
    ======================================================================
-   TOTAL COST: $   72.83
+   TOTAL COST: $  278.88
    ======================================================================
    ```
 
