@@ -124,7 +124,13 @@ Server Cache Statistics:
         alert(message);
     } catch (error) {
         console.error('Error fetching cache stats:', error);
-        showError('Failed to fetch cache statistics');
+        
+        // Check if it's a network/connection error
+        if (error.message.includes('Failed to fetch') || error.message.includes('fetch')) {
+            showError('Unable to connect to CloudSense server. Is the CloudSense GUI running?');
+        } else {
+            showError('Failed to fetch cache statistics');
+        }
     }
 }
 
@@ -155,6 +161,14 @@ async function fetchBillingData() {
         return await fetchWithCache(url);
     } catch (error) {
         console.error('Error fetching billing data:', error);
+        
+        // Check if it's a network/connection error
+        if (error.message.includes('Failed to fetch') || error.message.includes('fetch')) {
+            return { 
+                error: 'Unable to connect to CloudSense server. Is the CloudSense GUI running?' 
+            };
+        }
+        
         return { error: 'Failed to fetch billing data: ' + error.message };
     }
 }
@@ -178,7 +192,13 @@ async function loadRegions() {
         });
     } catch (error) {
         console.error('Error loading regions:', error);
-        showError('Failed to load AWS regions');
+        
+        // Check if it's a network/connection error
+        if (error.message.includes('Failed to fetch') || error.message.includes('fetch')) {
+            showError('Unable to connect to CloudSense server. Is the CloudSense GUI running?');
+        } else {
+            showError('Failed to load AWS regions');
+        }
     }
 }
 

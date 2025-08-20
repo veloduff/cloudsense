@@ -6,7 +6,7 @@ import sys
 import os
 import logging
 from datetime import datetime, timedelta
-from .app import create_app, get_cost_data, check_aws_auth
+from .app import create_app, get_cost_data, check_aws_auth, get_ec2_daily_breakdown, get_ebs_daily_breakdown
 from .utils.cache import get_cache_stats, generate_cache_key, get_cached_data, get_cache_entry_info, init_persistent_cache, clear_cache
 from .config.config import config
 from . import __version__
@@ -72,6 +72,16 @@ def output_cost_data_text(days: int = 30, hide_account: bool = False, force_refr
                 print(f"ERROR: {data['error']}")
                 sys.exit(1)
             
+            # Get EC2 and EBS breakdown data for detailed display
+            ec2_breakdown_data = None
+            ebs_breakdown_data = None
+            if filter_region != 'global':  # Breakdowns not available for global
+                try:
+                    ec2_breakdown_data = get_ec2_daily_breakdown(days=days, filter_region=filter_region)
+                    ebs_breakdown_data = get_ebs_daily_breakdown(days=days, filter_region=filter_region)
+                except Exception as e:
+                    logger.debug(f"Could not fetch breakdown data: {e}")
+            
             # Format output
             total_cost = data.get('totalCost', 0)
             services = data.get('serviceBreakdown', [])
@@ -117,6 +127,26 @@ def output_cost_data_text(days: int = 30, hide_account: bool = False, force_refr
                 cost = service.get('cost', 0)
                 percentage = (cost / total_cost * 100) if total_cost > 0 else 0
                 print(f"{i:2d}. {service_name:<45} ${cost:>8.2f} ({percentage:5.1f}%)")
+                
+                # Show detailed breakdown for EC2 - Other
+                if service_name == 'EC2 - Other':
+                    # Show EBS breakdown first
+                    if (ebs_breakdown_data and 'breakdown' in ebs_breakdown_data and 
+                        ebs_breakdown_data['breakdown']):
+                        for breakdown_item in ebs_breakdown_data['breakdown']:
+                            category = breakdown_item.get('category', 'Unknown')
+                            item_cost = breakdown_item.get('cost', 0)
+                            item_percentage = (item_cost / cost * 100) if cost > 0 else 0
+                            print(f"    {category:<45} ${item_cost:>8.2f} ({item_percentage:5.1f}%)")
+                    
+                    # Then show EC2 breakdown
+                    if (ec2_breakdown_data and 'breakdown' in ec2_breakdown_data and 
+                        ec2_breakdown_data['breakdown']):
+                        for breakdown_item in ec2_breakdown_data['breakdown']:
+                            category = breakdown_item.get('category', 'Unknown')
+                            item_cost = breakdown_item.get('cost', 0)
+                            item_percentage = (item_cost / cost * 100) if cost > 0 else 0
+                            print(f"    {category:<45} ${item_cost:>8.2f} ({item_percentage:5.1f}%)")
             print("=" * 70)
             print(f"TOTAL COST: ${total_cost:>8.2f}")
             print("=" * 70)
