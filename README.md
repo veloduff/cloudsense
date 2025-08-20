@@ -1,25 +1,47 @@
 # CloudSense
 
-A secure, minimal web interface for tracking AWS costs with customizable budget alerts and service breakdowns.
+A CLI and interactive GUI for AWS cost tracking.
 
 ## Features
 
-- **Secure AWS cost tracking** using Cost Explorer API with authentication
-- **Intelligent caching** - Cost data cached for 1 hour to improve performance
-- **Flexible time ranges** (7, 14, 30, 90 days, current month, previous month, custom month, specific day)
-- **Budget comparison** and usage tracking with alerts
-- **Daily cost trends** visualization with interactive charts
-- **Detailed service breakdown** by cost with EBS/EC2 analysis
-- **Responsive web interface** with real-time updates
-- **Performance optimized** with AWS session caching
+- **AWS cost tracking** using Cost Explorer API with authentication
+- **Complete cost visibility** - entire account and per-service usage analysis
+- **Intelligent caching** - persistent file-based caching with 1 hour duration (customizable) to minimize API costs
+- **Flexible time ranges**  - 7, 14, 30, 90 days, current month, previous month, custom month, specific day
+- **Interactive visualizations** - daily cost trends with dynamic charts
+- **Detailed breakdowns** - service-by-service cost analysis 
+- **Performance optimized** - AWS session caching and efficient API usage
+- **Enterprise features** - rate limiting, input validation, security headers
+- **Health monitoring** - built-in health check endpoint for monitoring
+- **Logging levels and debug mode** - structured logging with configurable levels
 
 ## Caching cost data to reduce cost 
 
 AWS Cost Explorer API calls are $.01 for each call.
 
-- CloudSense caches cost data for **1 hour** to reduce cost
-- Cache is status displayed in the interface with last update timestamp
-- Click **"Update Cost Data"** button to force refresh cached data
+### Cache Behavior
+- CloudSense caches cost data for **1 hour** (default, configurable) to reduce AWS API costs
+- **Persistent file-based caching** stored in `~/.cloudsense-cache/`
+- **Cross-session persistence** - cache survives CLI restarts 
+- Cache status displayed in CLI and web interface with last update timestamp
+- Click **"Update Cost Data"** button or use `--force-refresh` to bypass cache
+- CLI and GUI use the **same caching system** and share cached data
+- Second call to same data (within cache timeout) uses cache instead of AWS API
+
+
+**Practical Impact:**
+```bash
+# With persistent cache - significant cost savings!
+cloudsense --days 7           # Different parameters: API cost ($0.01)
+cloudsense --days 7           # Uses cache for 7-day data (Free - no API call)
+```
+
+**Cost Optimization Tips - Avoid API calls when you can**
+- Use **same time range** for multiple queries to benefit from caching
+- **GUI sessions** cache multiple API calls (regions, services, breakdowns)
+- **CLI repeated calls** with same parameters use cache within 1 hour
+- Configure longer cache duration with `--cache-duration 7200` (2 hours)
+- Use `--force-refresh` only when you need guaranteed fresh data
 
 ## Installation
 
@@ -47,33 +69,141 @@ source cloudsense-env/bin/activate
    ```
    
    **Authentication Required**: CloudSense requires valid AWS credentials to access cost data.
+   
+   **API Region**: CloudSense always uses `us-east-1` for AWS Cost Explorer API calls (hardcoded, AWS requirement). Your AWS_DEFAULT_REGION setting does not affect the Cost Explorer API endpoint.
 
-3. **Run CloudSense:**
+3. **Run CloudSense (CLI):**
    ```bash
    cloudsense
    ```
    
+   **Example CLI Output:**
+   ```
+   Gathering AWS cost data...
+   ======================================================================
+   CloudSense - AWS Cost Report (30 days)
+   ======================================================================
+   Account: 123456789012
+   Date Range: 2024-01-15 to 2024-02-14
+   Region: All Regions
+   Services: 8
+   Data Status: FRESH (updating cache)
+   ----------------------------------------------------------------------
+   Service Breakdown:
+   ----------------------------------------------------------------------
+    1. EC2 - Other                                   $   45.23 ( 62.1%)
+    2. EC2 - Compute                                 $   18.94 ( 26.0%)
+    3. Amazon S3                                     $    4.12 (  5.7%)
+    4. VPC                                           $    2.88 (  4.0%)
+    5. CloudWatch                                    $    1.02 (  1.4%)
+    6. AWS Backup                                    $    0.41 (  0.6%)
+    7. Amazon EFS                                    $    0.18 (  0.2%)
+    8. Route 53                                      $    0.05 (  0.1%)
+   ======================================================================
+   TOTAL COST: $   72.83
+   ======================================================================
+   ```
+
+4. **Launch Web Interface:**
+   ```bash
+   cloudsense --gui
+   ```
+   Then open http://localhost:8080 in your browser
+   
    **Security Note**: By default, CloudSense binds to `127.0.0.1` (localhost only) for security.
 
-4. **Access the interface:**
-   Open http://localhost:8080 in your browser
+   **GUI Startup Output**
 
-## Command Line Options
+   ```bash
+   Starting CloudSense on http://127.0.0.1:8080
+   Configuration: default
+   AWS Region: us-east-1
+   Cache Duration: 3600s
+   Log Level: INFO
+   
+   Press Ctrl+C to stop the server
+   --------------------------------------------------
+    * Serving Flask app 'cloudsense.app'
+    * Debug mode: off
+    * Running on http://127.0.0.1:8080
+   ```
 
+
+## Command Line Usage
+
+CloudSense is **CLI-first** - it outputs text by default, with optional web interface.
+
+### Text Output (Default)
 ```bash
-cloudsense --help                   # Show help
-cloudsense --port 5000              # Run on custom port
-cloudsense --host 127.0.0.1         # Bind to specific host (default: localhost)
-cloudsense --debug                  # Enable debug mode (development only)
+cloudsense                          # 30-day cost report (all regions by default)
+cloudsense --days 7                 # 7-day cost report  
+cloudsense --days 90                # 90-day cost report
+cloudsense --hide-acct              # Hide AWS account number
+cloudsense --force-refresh          # Force cache refresh
+cloudsense --aws-region us-west-2   # Show costs for us-west-2 region only
+cloudsense --aws-region global      # Show global services only (IAM, Route53, etc.)
 ```
 
-**Security Options:**
-- `--host 127.0.0.1` (default): Localhost only - most secure
-- `--host 0.0.0.0`: All interfaces - use with caution, requires firewall
+### Web Interface
+```bash
+cloudsense --gui                    # Launch web interface
+cloudsense --gui --hide-acct        # Launch web interface with hidden account
+cloudsense --gui --port 5000        # Web interface on custom port
+cloudsense --gui --host 0.0.0.0     # Web interface on all interfaces (security risk)
+cloudsense --gui --debug            # Web interface with debug mode
+```
+
+
+**Important Notes**:
+- `--aws-region` **only filters cost data** - it does NOT affect AWS API endpoints
+- **API Endpoint**: AWS Cost Explorer API always uses `us-east-1` endpoint (hardcoded, AWS requirement)
+
+### Environment Configuration
+```bash
+# Copy environment template and customize
+cp .env.example .env
+
+# Available environment variables:
+export AWS_REGION=us-east-1
+export LOG_LEVEL=INFO
+export CACHE_DURATION=3600
+export RATELIMIT_DEFAULT="100 per hour"
+export HIDE_ACCOUNT=false
+```
+
+CloudSense includes a built-in health check endpoint for monitoring and load balancer integration:
+
+```bash
+# Health check endpoint
+curl http://localhost:8080/health
+
+# Example response:
+{
+  "status": "healthy",
+  "aws": "connected", 
+  "timestamp": "2024-01-15T10:30:00Z",
+  "version": "0.1.1"
+}
+```
+
+## Rate Limiting & Security
+
+CloudSense implements comprehensive security measures:
+
+- **Rate Limiting**: API endpoints are protected with configurable rate limits
+  - `/api/billing`: 30 requests per minute
+  - `/api/service/*`: 60 requests per minute  
+  - `/api/regions`: 10 requests per minute
+- **Input Validation**: All parameters are validated and sanitized
+- **Security Headers**: Protection against XSS, clickjacking, and content sniffing
+- **Error Handling**: Structured error responses without sensitive information leakage
+- **Logging**: Comprehensive request and error logging for security monitoring
 
 ## AWS Permissions Required
 
 Your AWS credentials need the following permissions:
+
+**API Endpoint**: CloudSense hardcodes the `us-east-1` endpoint for AWS Cost Explorer API calls, as required by AWS. This is completely independent of your region filtering - you can still filter costs by any AWS region.
 ```json
 {
     "Version": "2012-10-17",
@@ -93,27 +223,38 @@ Your AWS credentials need the following permissions:
 
 **Note**: `sts:GetCallerIdentity` is required for authentication validation and account ID display.
 
-## Customization
 
-- **Budget Tracking**: Set custom budget amounts with usage alerts
-- **Time Ranges**: Choose from multiple date ranges or select specific periods
-- **Service Filtering**: View all services with meaningful costs (≥$0.0001)
-- **Interactive Charts**: Line, bar, pie, and stacked charts with service breakdowns
-- **Real-time Updates**: Automatic refresh with cached data optimization
+## Configuration Options
 
-## Usage
+Create a `.env` file for local development:
 
-1. **Authentication**: Ensure AWS credentials are configured (required for access)
-2. **Budget Setup**: Set custom budget amounts to compare against actual spending
-3. **Time Selection**: Choose from multiple date ranges or select specific periods
-4. **Cost Analysis**: View detailed metrics, trends, and service breakdowns
-5. **Performance**: Data cached for 1 hour - use "Update Cost Data" to refresh
-6. **Monitoring**: Track budget usage percentage and monthly projections
+```bash
+# AWS Configuration
+AWS_REGION=us-east-1
+AWS_PROFILE=default
 
-## Security Features
+# Application Configuration  
+FLASK_DEBUG=true
+LOG_LEVEL=DEBUG
+CACHE_DURATION=3600
 
-- **Authentication Required**: AWS credentials validated before access
-- **Localhost Binding**: Secure default host configuration (127.0.0.1)
-- **Updated Dependencies**: Latest Flask version with security patches
-- **Error Handling**: Comprehensive error handling prevents information leakage
-- **Session Caching**: Optimized AWS API usage with secure session management
+# Security Configuration
+RATELIMIT_DEFAULT=1000 per hour  # More lenient for development
+HIDE_ACCOUNT=false
+
+# Server Configuration
+HOST=127.0.0.1
+PORT=8080
+```
+
+## Logging
+
+View detailed logs:
+```bash
+cloudsense --log-level DEBUG  # Enable debug logging
+tail -f cloudsense.log        # Monitor log file
+```
+
+## License
+
+MIT License - see LICENSE file for details.

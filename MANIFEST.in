@@ -1,4 +1,6 @@
 include README.md
 include requirements.txt
+include .env.example
 recursive-include cloudsense/templates *.html
+recursive-include cloudsense/static *.css *.js
 recursive-include cloudsense *.py

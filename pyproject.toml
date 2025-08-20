@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cloudsense"
-version = "0.1.0"
-description = "A minimal web interface for tracking AWS costs with customizable budget alerts and service breakdowns"
+version = "0.1.1"
+description = "A CLI and interactive GUI for AWS cost tracking."
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "CloudSense Team", email = "cloudsense@example.com"}
+    {name = "Veloduff"}
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -23,17 +23,19 @@ classifiers = [
     "Topic :: System :: Monitoring",
     "Topic :: Internet :: WWW/HTTP :: WSGI :: Application"
 ]
-keywords = ["aws", "cost", "budget", "dashboard", "monitoring", "cloud"]
+keywords = ["aws", "cost", "budget", "cli", "dashboard", "monitoring", "cloud", "gui"]
 requires-python = ">=3.8"
 dependencies = [
     "flask>=3.0.0",
-    "boto3>=1.26.0"
+    "boto3>=1.26.0",
+    "flask-limiter>=3.3.0",
+    "Werkzeug>=3.0.0"
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/cloudsense"
-Repository = "https://github.com/yourusername/cloudsense"
-Issues = "https://github.com/yourusername/cloudsense/issues"
+Homepage = "https://github.com/veloduff/cloudsense"
+Repository = "https://github.com/veloduff/cloudsense"
+Issues = "https://github.com/veloduff/cloudsense/issues"
 
 [project.scripts]
 cloudsense = "cloudsense.cli:main"
