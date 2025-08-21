@@ -148,7 +148,7 @@ source cloudsense-env/bin/activate
    
    **Video Walkthrough** 
 
-   [![CloudSense Web GUI Walkthrough](_assets/media/screenshot_01.png)](https://github.com/user-attachments/assets/CloudSense_v1.mp4)
+   [![CloudSense Web GUI Walkthrough](_assets/media/screenshot_01.png)](_assets/CloudSense_v1.mp4)
    
    *Click the image above to watch the complete web interface walkthrough video*
 
