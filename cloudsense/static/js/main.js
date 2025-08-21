@@ -202,26 +202,31 @@ async function loadRegions() {
     }
 }
 
+// Removed trend tracking for simplicity
+
 // UI update functions
 function updateMetrics(data) {
     const totalCost = data.totalCost || 0;
     const timeRange = document.getElementById('timeRange').value;
     const specificDate = document.getElementById('specificDate').value;
     
-    let days, dailyAvg, projectedCost, totalCostLabel;
+    let days, dailyAvg, projectedCost, totalCostLabel, periodLabel;
     
     if (isMonthlyView()) {
         totalCostLabel = 'Total Cost';
+        periodLabel = 'Month to date';
         days = new Date().getDate();
         dailyAvg = totalCost / days;
         projectedCost = dailyAvg * 30;
     } else if (specificDate) {
         totalCostLabel = 'Total Cost';
+        periodLabel = 'Single day';
         days = 1;
         dailyAvg = totalCost;
         projectedCost = totalCost * 30;
     } else {
         totalCostLabel = 'Total Cost';
+        periodLabel = `Last ${timeRange} days`;
         days = parseInt(timeRange) || 30;
         dailyAvg = totalCost / days;
         projectedCost = dailyAvg * 30;
@@ -229,14 +234,84 @@ function updateMetrics(data) {
     
     const budgetLimit = parseFloat(document.getElementById('budgetLimit').value) || 0;
     const budgetUsed = budgetLimit > 0 ? (totalCost / budgetLimit * 100) : 0;
+    const budgetRemaining = budgetLimit > 0 ? (budgetLimit - totalCost) : 0;
 
-    document.getElementById('totalCost').textContent = formatCurrency(totalCost);
+    // Update metric values with enhanced formatting
+    document.getElementById('totalCost').textContent = formatCurrencyEnhanced(totalCost);
     document.getElementById('totalCostLabel').textContent = totalCostLabel;
-    document.getElementById('dailyAvg').textContent = formatCurrency(dailyAvg);
-    document.getElementById('projectedCost').textContent = formatCurrency(projectedCost);
+    document.getElementById('totalCostPeriod').textContent = periodLabel;
+    
+    document.getElementById('dailyAvg').textContent = formatCurrencyEnhanced(dailyAvg);
+    
+    document.getElementById('projectedCost').textContent = formatCurrencyEnhanced(projectedCost);
+    
     document.getElementById('budgetUsed').textContent = `${budgetUsed.toFixed(1)}%`;
+    if (budgetLimit > 0) {
+        document.getElementById('budgetRemaining').textContent = `${formatCurrencyEnhanced(budgetRemaining)} remaining`;
+    } else {
+        document.getElementById('budgetRemaining').textContent = 'No budget set';
+    }
+
+    // Update budget progress bar
+    updateBudgetProgress(budgetUsed);
+
+    // Update budget status indicator
+    updateBudgetStatus(budgetUsed, budgetLimit);
 
     updateAlerts(budgetUsed, projectedCost, budgetLimit);
+}
+
+function formatCurrencyEnhanced(amount) {
+    if (amount === 0) return '$0.00';
+    if (amount < 0.01) return '<$0.01';
+    if (amount >= 1000000) return `$${(amount / 1000000).toFixed(1)}M`;
+    if (amount >= 1000) return `$${(amount / 1000).toFixed(1)}K`;
+    return `$${amount.toFixed(2)}`;
+}
+
+// Trend indicators removed for simplicity
+
+function updateBudgetProgress(budgetUsed) {
+    const progressFill = document.getElementById('budgetProgress');
+    if (!progressFill) return;
+    
+    const clampedUsage = Math.min(budgetUsed, 100);
+    progressFill.style.width = `${clampedUsage}%`;
+    
+    // Remove existing progress classes
+    progressFill.classList.remove('progress-warning', 'progress-danger');
+    
+    // Add appropriate class based on usage
+    if (budgetUsed >= 100) {
+        progressFill.classList.add('progress-danger');
+    } else if (budgetUsed >= 80) {
+        progressFill.classList.add('progress-warning');
+    }
+}
+
+function updateBudgetStatus(budgetUsed, budgetLimit) {
+    const statusElement = document.getElementById('budgetStatus');
+    if (!statusElement) return;
+    
+    const indicator = statusElement.querySelector('.status-indicator');
+    if (!indicator) return;
+    
+    // Remove existing status classes
+    indicator.classList.remove('status-good', 'status-warning', 'status-danger');
+    
+    if (budgetLimit === 0) {
+        indicator.textContent = 'No Budget';
+        indicator.classList.add('status-neutral');
+    } else if (budgetUsed >= 100) {
+        indicator.textContent = 'Over Budget';
+        indicator.classList.add('status-danger');
+    } else if (budgetUsed >= 80) {
+        indicator.textContent = 'High Usage';
+        indicator.classList.add('status-warning');
+    } else {
+        indicator.textContent = 'On Track';
+        indicator.classList.add('status-good');
+    }
 }
 
 function formatCurrency(amount) {
@@ -250,17 +325,9 @@ function formatCurrency(amount) {
 }
 
 function updateAlerts(budgetUsed, projectedCost, budgetLimit) {
+    // Budget alerts removed - budget card shows all necessary information
     const alertsDiv = document.getElementById('alerts');
     alertsDiv.innerHTML = '';
-
-    if (budgetLimit > 0) {
-        const totalCost = parseFloat(document.getElementById('totalCost').textContent.replace('$', ''));
-        if (budgetUsed > 100) {
-            alertsDiv.innerHTML = `<div class="alert alert-danger">WARNING: Budget exceeded! Actual: ${formatCurrency(totalCost)} vs Budget: ${formatCurrency(budgetLimit)}</div>`;
-        } else if (budgetUsed > 80) {
-            alertsDiv.innerHTML = `<div class="alert alert-warning">WARNING: Approaching budget limit (${budgetUsed.toFixed(1)}% used)</div>`;
-        }
-    }
 }
 
 function showError(message) {
@@ -424,9 +491,9 @@ function updateServicesList(data) {
         const color = serviceColors[index % serviceColors.length];
         return `
             <div class="service-item" onclick="showServiceChart('${escapeHtml(service.service)}')" style="border-left-color: ${color};">
-                <strong>${escapeHtml(service.service)}</strong>
-                <div style="font-size: 18px; color: #3b82f6; margin-top: 5px;">${formatCurrency(service.cost)}</div>
-                <div style="font-size: 12px; color: #666;">${((service.cost / data.totalCost) * 100).toFixed(1)}% of total</div>
+                <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">${escapeHtml(service.service)}</div>
+                <div style="font-size: 16px; color: #1d4ed8; font-weight: 700;">${formatCurrency(service.cost)}</div>
+                <div style="font-size: 11px; color: #666; margin-top: 2px;">${((service.cost / data.totalCost) * 100).toFixed(1)}% of total</div>
             </div>
         `;
     }).join('');
@@ -613,8 +680,8 @@ function updateEbsList(data) {
         const color = serviceColors[index % serviceColors.length];
         return `
             <div class="service-item" style="border-left-color: ${color};">
-                <strong>${escapeHtml(item.category)}</strong>
-                <div style="font-size: 18px; color: #3b82f6; margin-top: 5px;">${formatCurrency(item.cost)}</div>
+                <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">${escapeHtml(item.category)}</div>
+                <div style="font-size: 16px; color: #1d4ed8; font-weight: 700;">${formatCurrency(item.cost)}</div>
             </div>
         `;
     }).join('');
@@ -637,8 +704,8 @@ function updateEc2List(data) {
         const color = serviceColors[index % serviceColors.length];
         return `
             <div class="service-item" style="border-left-color: ${color};">
-                <strong>${escapeHtml(item.category)}</strong>
-                <div style="font-size: 18px; color: #3b82f6; margin-top: 5px;">${formatCurrency(item.cost)}</div>
+                <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">${escapeHtml(item.category)}</div>
+                <div style="font-size: 16px; color: #1d4ed8; font-weight: 700;">${formatCurrency(item.cost)}</div>
             </div>
         `;
     }).join('');
@@ -651,10 +718,26 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// Chart type icon management
+function updateChartTypeIcon() {
+    const chartType = document.getElementById('chartType');
+    const selectedValue = chartType.value;
+    
+    // Remove all chart type classes
+    chartType.classList.remove('chart-line', 'chart-bar', 'chart-pie');
+    
+    // Add the appropriate class for the selected chart type
+    chartType.classList.add(`chart-${selectedValue}`);
+}
+
+// Metric cards are now static - no interactions needed
+
 // Event listeners
 document.addEventListener('DOMContentLoaded', function() {
     // Server-side caching now handles data freshness
     // Only clear client cache if explicitly requested by user
+    
+    // Metric cards are now static - no initialization needed
     
     // Initialize event listeners
     document.getElementById('timeRange').addEventListener('change', () => {
@@ -679,6 +762,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     document.getElementById('chartType').addEventListener('change', () => {
+        updateChartTypeIcon();
         if (currentData) updateChart(currentData);
     });
 
@@ -700,6 +784,9 @@ document.addEventListener('DOMContentLoaded', function() {
         refreshData();
     });
 
+    // Initialize chart type icon
+    updateChartTypeIcon();
+    
     // Load initial data
     loadRegions();
     refreshData();

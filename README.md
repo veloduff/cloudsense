@@ -15,6 +15,7 @@ A CLI and interactive GUI for AWS cost tracking.
 - **Health monitoring** - built-in health check endpoint for monitoring
 - **Logging levels and debug mode** - structured logging with configurable levels
 
+
 ## Caching cost data to reduce cost 
 
 AWS Cost Explorer API calls are $.01 for each call.
@@ -144,6 +145,12 @@ source cloudsense-env/bin/activate
     * Debug mode: off
     * Running on http://127.0.0.1:8080
    ```
+   
+   **Video Walkthrough** 
+
+   [![CloudSense Web GUI Walkthrough](_assets/media/screenshot_01.png)](https://github.com/user-attachments/assets/CloudSense_v1.mp4)
+   
+   *Click the image above to watch the complete web interface walkthrough video*
 
 
 ## Command Line Usage
