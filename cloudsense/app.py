@@ -23,8 +23,8 @@ from .utils.validators import (
 )
 from .utils.helpers import (
     parse_date_params, normalize_service_name, get_original_service_name,
-    categorize_ebs_usage, format_currency, calculate_daily_average,
-    calculate_monthly_projection, is_global_service
+    categorize_ebs_usage, categorize_ebs_usage_improved, categorize_ec2_usage_improved,
+    format_currency, calculate_daily_average, calculate_monthly_projection, is_global_service
 )
 from .utils.cache import cache_result, get_cache_stats, clear_cache, cleanup_expired_cache
 
@@ -582,7 +582,7 @@ def get_service_cost_data(service_name: str, days: int = 30, specific_date: str 
 @cache_result()
 def get_ebs_daily_breakdown(days: int = 30, specific_date: str = None, month: str = None, 
                            filter_region: str = 'all') -> Dict[str, Any]:
-    """Get EBS daily breakdown by usage type"""
+    """Get EBS daily breakdown by usage type group"""
     # EBS is a regional service - return empty for global region
     if filter_region == 'global':
         return {'breakdown': []}
@@ -618,11 +618,14 @@ def get_ebs_daily_breakdown(days: int = 30, specific_date: str = None, month: st
         ebs_costs = {}
         for result in response['ResultsByTime']:
             for group in result['Groups']:
+                service = group['Keys'][0]
                 usage_type = group['Keys'][1]
                 cost = float(group['Metrics']['BlendedCost']['Amount'])
                 
-                if 'EBS:' in usage_type and cost >= 0.0001:
-                    category = categorize_ebs_usage(usage_type)
+                # Filter for EBS-related usage types and costs
+                if cost >= 0.0001 and 'EBS:' in usage_type:
+                    # Improved categorization based on usage type patterns
+                    category = categorize_ebs_usage_improved(usage_type)
                     ebs_costs[category] = ebs_costs.get(category, 0) + cost
         
         breakdown = [{'category': cat, 'cost': cost} 
@@ -647,7 +650,7 @@ def _update_ec2_category(ec2_costs: dict, daily_ec2_data: dict, category: str,
 @cache_result()
 def get_ec2_daily_breakdown(days: int = 30, specific_date: str = None, month: str = None, 
                            filter_region: str = 'all') -> Dict[str, Any]:
-    """Get EC2 daily breakdown by usage type"""
+    """Get EC2 daily breakdown by usage type group"""
     # EC2 is a regional service - return empty for global region
     if filter_region == 'global':
         return {'breakdown': []}
@@ -695,21 +698,9 @@ def get_ec2_daily_breakdown(days: int = 30, specific_date: str = None, month: st
                 if cost < 0.0001 or 'EBS:' in usage_type or 'BoxUsage' in usage_type:
                     continue
                 
-                category = 'Other EC2'
-                if 'SpotUsage' in usage_type:
-                    category = 'Spot Instances'
-                elif 'DataTransfer' in usage_type:
-                    category = 'Data Transfer'
-                elif 'ElasticIP' in usage_type:
-                    category = 'Elastic IP'
-                elif 'LoadBalancer' in usage_type:
-                    category = 'Load Balancer'
-                elif 'NatGateway' in usage_type:
-                    category = 'NAT Gateway'
-                
+                # Improved categorization for EC2-related services
                 if service in ['Amazon Elastic Compute Cloud - Compute', 'EC2 - Other', 'Amazon Elastic Compute Cloud NatGateway']:
-                    if service == 'Amazon Elastic Compute Cloud NatGateway':
-                        category = 'NAT Gateway'
+                    category = categorize_ec2_usage_improved(usage_type, service)
                     _update_ec2_category(ec2_costs, daily_ec2_data, category, cost, i, len(dates))
         
         breakdown = [{'category': cat, 'cost': cost} 

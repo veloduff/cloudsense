@@ -220,3 +220,106 @@ def calculate_monthly_projection(daily_avg: float, days_in_month: int = 30) -> f
         float: Projected monthly cost
     """
     return daily_avg * days_in_month
+
+
+def categorize_ebs_usage_improved(usage_type: str) -> str:
+    """
+    Improved EBS usage type categorization to match AWS billing console exactly
+    
+    Args:
+        usage_type: AWS usage type string (e.g., "EBS:VolumeUsage.gp3")
+        
+    Returns:
+        str: Descriptive category name matching AWS console
+    """
+    # Remove EBS: prefix if present
+    clean_type = usage_type.replace('EBS:', '').strip()
+    
+    # Match AWS console line items exactly - most specific patterns first
+    
+    # IOPS charges (most specific)
+    if 'VolumeP-IOPS.io2' in clean_type:
+        return 'EBS io2 IOPS'
+    elif 'VolumeP-IOPS.piops' in clean_type:
+        return 'EBS io1 IOPS' 
+    elif 'P-IOPS' in clean_type and 'io2' in clean_type:
+        return 'EBS io2 IOPS'
+    elif 'P-IOPS' in clean_type and 'piops' in clean_type:
+        return 'EBS io1 IOPS'
+    elif 'IOPS' in clean_type and 'io2' in clean_type:
+        return 'EBS io2 IOPS'
+    elif 'IOPS' in clean_type and ('io1' in clean_type or 'piops' in clean_type):
+        return 'EBS io1 IOPS'
+    
+    # Snapshots
+    elif 'Snapshot' in clean_type:
+        return 'EBS Snapshots'
+    
+    # Storage charges (specific volume types)
+    elif 'VolumeUsage.gp3' in clean_type:
+        return 'EBS gp3 Storage'
+    elif 'VolumeUsage.io1' in clean_type:
+        return 'EBS io1 Storage'
+    elif 'VolumeUsage.io2' in clean_type:  
+        return 'EBS io2 Storage'
+    elif 'VolumeUsage.gp2' in clean_type:
+        return 'EBS gp2 Storage'
+    elif 'VolumeUsage.st1' in clean_type:
+        return 'EBS st1 Storage'
+    elif 'VolumeUsage.sc1' in clean_type:
+        return 'EBS sc1 Storage'
+    
+    # Fallback patterns for storage
+    elif 'gp3' in clean_type and 'VolumeUsage' in clean_type:
+        return 'EBS gp3 Storage'
+    elif 'io1' in clean_type and 'VolumeUsage' in clean_type:
+        return 'EBS io1 Storage'
+    elif 'io2' in clean_type and 'VolumeUsage' in clean_type:
+        return 'EBS io2 Storage'
+    elif 'gp2' in clean_type and 'VolumeUsage' in clean_type:
+        return 'EBS gp2 Storage'
+    
+    # Generic fallbacks
+    elif 'VolumeUsage' in clean_type:
+        return 'EBS Storage (Other)'
+    else:
+        return f'EBS Other ({clean_type})'  # Show the actual usage type for debugging
+
+
+def categorize_ec2_usage_improved(usage_type: str, service: str) -> str:
+    """
+    Improved EC2 usage type categorization with better pattern matching
+    
+    Args:
+        usage_type: AWS usage type string
+        service: AWS service name
+        
+    Returns:
+        str: Descriptive category name
+    """
+    # Handle NAT Gateway separately
+    if service == 'Amazon Elastic Compute Cloud NatGateway' or 'NatGateway' in usage_type:
+        return 'NAT Gateway'
+    
+    # Pattern-based categorization
+    if 'DataTransfer' in usage_type:
+        if 'In' in usage_type:
+            return 'Data Transfer (In)'
+        elif 'Out' in usage_type:
+            return 'Data Transfer (Out)'
+        else:
+            return 'Data Transfer'
+    elif 'ElasticIP' in usage_type:
+        return 'Elastic IP'
+    elif 'LoadBalancer' in usage_type:
+        return 'Load Balancer'
+    elif 'SpotUsage' in usage_type:
+        return 'Spot Instances'
+    elif 'ReservedInstance' in usage_type:
+        return 'Reserved Instances'
+    elif 'DedicatedUsage' in usage_type:
+        return 'Dedicated Hosts'
+    elif 'Instance' in usage_type and 'BoxUsage' not in usage_type:
+        return 'Instance Usage'
+    else:
+        return 'EC2 Other'

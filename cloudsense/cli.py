@@ -33,7 +33,7 @@ def setup_logging(log_level: str):
         logging.getLogger('urllib3').setLevel(logging.WARNING)
 
 
-def output_cost_data_text(days: int = 30, hide_account: bool = False, force_refresh: bool = False, filter_region: str = 'all'):
+def output_cost_data_text(days: int = 30, hide_account: bool = False, force_refresh: bool = False, filter_region: str = 'all', start_date: datetime = None, end_date: datetime = None):
     """Output cost data as formatted text to stdout"""
     try:
         # Create Flask app for context
@@ -66,7 +66,12 @@ def output_cost_data_text(days: int = 30, hide_account: bool = False, force_refr
                 sys.exit(1)
             
             # Get cost data for specified region
-            data = get_cost_data(days=days, filter_region=filter_region, hide_account=hide_account)
+            if start_date is not None and end_date is not None:
+                # Use current month mode
+                data = get_cost_data(days=days, filter_region=filter_region, hide_account=hide_account, month='current')
+            else:
+                # Use days mode
+                data = get_cost_data(days=days, filter_region=filter_region, hide_account=hide_account)
             
             if 'error' in data:
                 print(f"ERROR: {data['error']}")
@@ -77,8 +82,14 @@ def output_cost_data_text(days: int = 30, hide_account: bool = False, force_refr
             ebs_breakdown_data = None
             if filter_region != 'global':  # Breakdowns not available for global
                 try:
-                    ec2_breakdown_data = get_ec2_daily_breakdown(days=days, filter_region=filter_region)
-                    ebs_breakdown_data = get_ebs_daily_breakdown(days=days, filter_region=filter_region)
+                    if start_date is not None and end_date is not None:
+                        # Use current month mode
+                        ec2_breakdown_data = get_ec2_daily_breakdown(days=days, filter_region=filter_region, month='current')
+                        ebs_breakdown_data = get_ebs_daily_breakdown(days=days, filter_region=filter_region, month='current')
+                    else:
+                        # Use days mode
+                        ec2_breakdown_data = get_ec2_daily_breakdown(days=days, filter_region=filter_region)
+                        ebs_breakdown_data = get_ebs_daily_breakdown(days=days, filter_region=filter_region)
                 except Exception as e:
                     logger.debug(f"Could not fetch breakdown data: {e}")
             
@@ -97,14 +108,17 @@ def output_cost_data_text(days: int = 30, hide_account: bool = False, force_refr
                 cache_entry_info = get_cache_entry_info(cache_key)
         
         # Calculate date range
-        end_date = datetime.now()
-        start_date = end_date - timedelta(days=days)
+        if start_date is None or end_date is None:
+            # Default behavior: days back from today
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=days)
+        
         date_range = f"{start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}"
         
         # Header
-        print("=" * 70)
+        print("=" * 74)
         print(f"CloudSense - AWS Cost Report ({days} days)")
-        print("=" * 70)
+        print("=" * 74)
         print(f"Account: {account_id}")
         print(f"Date Range: {date_range}")
         print(f"Region: {filter_region.upper() if filter_region != 'all' else 'All Regions'}")
@@ -116,18 +130,29 @@ def output_cost_data_text(days: int = 30, hide_account: bool = False, force_refr
             print(f"Data Status: CACHED at {cached_at.strftime('%Y-%m-%d %H:%M')}")
         else:
             print(f"Data Status: FRESH (updating cache)")
-        print("-" * 70)
+        print("-" * 74)
         
         # Services breakdown
         if services:
             print("Service Breakdown:")
-            print("-" * 70)
+            print("-" * 74)
             for i, service in enumerate(services, 1):
                 service_name = service.get('service', 'Unknown')
                 cost = service.get('cost', 0)
                 percentage = (cost / total_cost * 100) if total_cost > 0 else 0
                 
-                print(f"{i:2d}. {service_name:<45}   ${cost:>8.2f}   ({percentage:5.1f}%)")
+                # Clean up service name for display if too long
+                display_name = service_name
+                
+                # Only remove prefixes if name is too long to fit (45 chars)
+                if len(display_name) > 45:
+                    prefixes_to_remove = ['Amazon ', 'AWS ']
+                    for prefix in prefixes_to_remove:
+                        if display_name.startswith(prefix):
+                            display_name = display_name[len(prefix):]
+                            break
+                
+                print(f"{i:2d}. {display_name:<45}   ${cost:>10.2f}   ({percentage:5.1f}%)")
                 
                 # Show detailed breakdown for EC2 - Other
                 if service_name == 'EC2 - Other':
@@ -152,15 +177,15 @@ def output_cost_data_text(days: int = 30, hide_account: bool = False, force_refr
                         is_last_breakdown = (j == len(breakdown_items) - 1)
                         breakdown_prefix = "└──" if is_last_breakdown else "├──"
                         
-                        print(f"    {breakdown_prefix} {category:<47} {breakdown_prefix} {item_cost:>6.2f}")
-            print("=" * 70)
+                        print(f"    {breakdown_prefix} {category:<47}    {breakdown_prefix} {item_cost:>8.2f}")
+            print("=" * 74)
             print(f"TOTAL COST: ${total_cost:>8.2f}")
-            print("=" * 70)
+            print("=" * 74)
         else:
             print("No services with costs found")
-            print("=" * 70)
+            print("=" * 74)
             print(f"TOTAL COST: ${total_cost:>8.2f}")
-            print("=" * 70)
+            print("=" * 74)
         
         
     except Exception as e:
@@ -176,7 +201,7 @@ def main():
         epilog="""
 Examples:
   Text Output (Default):
-    cloudsense                          # Show 30-day cost report
+    cloudsense                          # Show current month cost report
     cloudsense --days 7                 # Show 7-day cost report
     cloudsense --days 90 --hide-acct    # 90-day report, hide account number
     cloudsense --aws-region eu-west-1   # Use specific AWS region
@@ -246,8 +271,8 @@ Environment Variables:
     # Output mode
     parser.add_argument('--gui', action='store_true',
                        help='Launch web interface (default: text output)')
-    parser.add_argument('--days', type=int, default=30,
-                       help='Number of days for cost report (default: 30, text mode only)')
+    parser.add_argument('--days', type=int, default=None,
+                       help='Number of days for cost report (default: current month, text mode only)')
     parser.add_argument('--force-refresh', action='store_true',
                        help='Force fresh data fetch, bypassing cache')
     
@@ -389,7 +414,30 @@ Environment Variables:
         # Text mode - output cost data to stdout (default)
         # Convert AWS region to filter region format
         filter_region = 'all' if not args.aws_region else args.aws_region
-        output_cost_data_text(days=args.days, hide_account=args.hide_acct, force_refresh=args.force_refresh, filter_region=filter_region)
+        
+        # Default to current month if no days specified
+        if args.days is None:
+            # Calculate current month range
+            from datetime import datetime
+            now = datetime.now()
+            start_of_month = now.replace(day=1)
+            days_in_current_month = (now - start_of_month).days + 1
+            
+            output_cost_data_text(
+                days=days_in_current_month, 
+                hide_account=args.hide_acct, 
+                force_refresh=args.force_refresh, 
+                filter_region=filter_region,
+                start_date=start_of_month,
+                end_date=now
+            )
+        else:
+            output_cost_data_text(
+                days=args.days, 
+                hide_account=args.hide_acct, 
+                force_refresh=args.force_refresh, 
+                filter_region=filter_region
+            )
 
 if __name__ == '__main__':
     main()
