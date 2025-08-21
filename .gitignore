@@ -568,4 +568,10 @@ local_data/*
 models/*
 demo_wafer_model.pth
 
+# cloudsense
+cloudsense.log
+__pycache__/
+cloudsense.egg-info/
+dist/
+
 
