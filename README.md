@@ -146,11 +146,11 @@ source cloudsense-env/bin/activate
     * Running on http://127.0.0.1:8080
    ```
    
-   **Video Walkthrough** 
+   **Demo** 
 
-   [![CloudSense Web GUI Walkthrough](_assets/media/screenshot_01.png)](_assets/CloudSense_v1.mp4)
+   ![CloudSense Web GUI Demo](_assets/media/CloudSense_v1.gif)
    
-   *Click the image above to watch the complete web interface walkthrough video*
+   *See CloudSense web interface in action*
 
 
 ## Command Line Usage
