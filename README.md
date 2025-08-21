@@ -173,10 +173,6 @@ cloudsense --gui --debug            # Web interface with debug mode
 ```
 
 
-**Important Notes**:
-- `--aws-region` **only filters cost data** - it does NOT affect AWS API endpoints
-- **API Endpoint**: AWS Cost Explorer API always uses `us-east-1` endpoint (hardcoded, AWS requirement)
-
 ### Environment Configuration
 ```bash
 # Copy environment template and customize
