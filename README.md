@@ -32,12 +32,12 @@ AWS Cost Explorer API calls are $.01 for each call.
 
 **Practical Impact:**
 ```bash
-# With persistent cache - significant cost savings!
+# With persistent cache
 cloudsense --days 7           # Different parameters: API cost ($0.01)
 cloudsense --days 7           # Uses cache for 7-day data (Free - no API call)
 ```
 
-**Cost Optimization Tips - Avoid API calls when you can**
+**Cost Optimization Tips - Avoid Cost Explorer API calls when you can**
 - Use **same time range** for multiple queries to benefit from caching
 - **GUI sessions** cache multiple API calls (regions, services, breakdowns)
 - **CLI repeated calls** with same parameters use cache within 1 hour
@@ -146,16 +146,11 @@ source cloudsense-env/bin/activate
     * Running on http://127.0.0.1:8080
    ```
    
-   **Demo** 
 
    ![CloudSense Web GUI Demo](_assets/media/CloudSense_v1.gif)
-   
-   *See CloudSense web interface in action*
 
 
 ## Command Line Usage
-
-CloudSense is **CLI-first** - it outputs text by default, with optional web interface.
 
 ### Text Output (Default)
 ```bash
