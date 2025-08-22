@@ -255,11 +255,13 @@ def categorize_ebs_usage_improved(usage_type: str) -> str:
     elif 'Snapshot' in clean_type:
         return 'EBS Snapshots'
     
-    # Storage charges (specific volume types) - check broader patterns first
-    elif 'gp3' in clean_type and 'VolumeUsage' in clean_type:
+    # gp3 charges (separate by charge type)
+    elif 'VolumeUsage.gp3' in clean_type or ('gp3' in clean_type and 'VolumeUsage' in clean_type):
         return 'EBS gp3 Storage'
-    elif 'VolumeUsage.gp3' in clean_type:
-        return 'EBS gp3 Storage'
+    elif 'IOPS.gp3' in clean_type or ('gp3' in clean_type and 'IOPS' in clean_type):
+        return 'EBS gp3 IOPS'
+    elif 'Throughput.gp3' in clean_type or ('gp3' in clean_type and 'Throughput' in clean_type):
+        return 'EBS gp3 Throughput'
     elif 'io1' in clean_type and 'VolumeUsage' in clean_type:
         return 'EBS io1 Storage'  
     elif 'VolumeUsage.io1' in clean_type:
