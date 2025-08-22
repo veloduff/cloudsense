@@ -616,6 +616,8 @@ def get_ebs_daily_breakdown(days: int = 30, specific_date: str = None, month: st
         response = client.get_cost_and_usage(**request_params)
         
         ebs_costs = {}
+        other_items = {}  # Track "Other" items separately
+        
         for result in response['ResultsByTime']:
             for group in result['Groups']:
                 service = group['Keys'][0]
@@ -626,7 +628,24 @@ def get_ebs_daily_breakdown(days: int = 30, specific_date: str = None, month: st
                 if cost >= 0.0001 and 'EBS:' in usage_type:
                     # Improved categorization based on usage type patterns
                     category = categorize_ebs_usage_improved(usage_type)
-                    ebs_costs[category] = ebs_costs.get(category, 0) + cost
+                    
+                    # If it's a generic "Other" category, track the original usage type
+                    if category == 'EBS Storage (Other)':
+                        clean_type = usage_type.replace('EBS:', '').strip()
+                        other_items[clean_type] = other_items.get(clean_type, 0) + cost
+                    else:
+                        ebs_costs[category] = ebs_costs.get(category, 0) + cost
+        
+        # Handle "Other" items - if only one type, use the actual usage type name
+        if other_items:
+            if len(other_items) == 1:
+                # Only one "other" item, use the actual usage type
+                usage_type, cost = next(iter(other_items.items()))
+                ebs_costs[f'EBS {usage_type}'] = cost
+            else:
+                # Multiple "other" items, combine under generic label
+                total_other_cost = sum(other_items.values())
+                ebs_costs['EBS Storage (Other)'] = total_other_cost
         
         breakdown = [{'category': cat, 'cost': cost} 
                     for cat, cost in sorted(ebs_costs.items(), key=lambda x: x[1], reverse=True)]

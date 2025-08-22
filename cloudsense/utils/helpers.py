@@ -255,13 +255,23 @@ def categorize_ebs_usage_improved(usage_type: str) -> str:
     elif 'Snapshot' in clean_type:
         return 'EBS Snapshots'
     
-    # Storage charges (specific volume types)
+    # Storage charges (specific volume types) - check broader patterns first
+    elif 'gp3' in clean_type and 'VolumeUsage' in clean_type:
+        return 'EBS gp3 Storage'
     elif 'VolumeUsage.gp3' in clean_type:
         return 'EBS gp3 Storage'
+    elif 'io1' in clean_type and 'VolumeUsage' in clean_type:
+        return 'EBS io1 Storage'  
     elif 'VolumeUsage.io1' in clean_type:
         return 'EBS io1 Storage'
+    elif 'piops' in clean_type and 'VolumeUsage' in clean_type:
+        return 'EBS io1 Storage'  # piops = provisioned IOPS storage (io1)
+    elif 'io2' in clean_type and 'VolumeUsage' in clean_type:
+        return 'EBS io2 Storage'
     elif 'VolumeUsage.io2' in clean_type:  
         return 'EBS io2 Storage'
+    elif 'gp2' in clean_type and 'VolumeUsage' in clean_type:
+        return 'EBS gp2 Storage'
     elif 'VolumeUsage.gp2' in clean_type:
         return 'EBS gp2 Storage'
     elif 'VolumeUsage.st1' in clean_type:
@@ -269,20 +279,14 @@ def categorize_ebs_usage_improved(usage_type: str) -> str:
     elif 'VolumeUsage.sc1' in clean_type:
         return 'EBS sc1 Storage'
     
-    # Fallback patterns for storage
-    elif 'gp3' in clean_type and 'VolumeUsage' in clean_type:
-        return 'EBS gp3 Storage'
-    elif 'io1' in clean_type and 'VolumeUsage' in clean_type:
-        return 'EBS io1 Storage'
-    elif 'io2' in clean_type and 'VolumeUsage' in clean_type:
-        return 'EBS io2 Storage'
-    elif 'gp2' in clean_type and 'VolumeUsage' in clean_type:
-        return 'EBS gp2 Storage'
-    
     # Generic fallbacks
     elif 'VolumeUsage' in clean_type:
         return 'EBS Storage (Other)'
     else:
+        # Log unmatched types for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.debug(f"Unmatched EBS usage type: {clean_type}")
         return f'EBS Other ({clean_type})'  # Show the actual usage type for debugging
 
 
