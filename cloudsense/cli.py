@@ -67,8 +67,9 @@ def output_cost_data_text(days: int = 30, hide_account: bool = False, force_refr
             
             # Get cost data for specified region
             if start_date is not None and end_date is not None:
-                # Use current month mode
-                data = get_cost_data(days=days, filter_region=filter_region, hide_account=hide_account, month='current')
+                # Convert dates to month format for backend
+                month_str = start_date.strftime('%Y-%m')
+                data = get_cost_data(days=days, filter_region=filter_region, hide_account=hide_account, month=month_str)
             else:
                 # Use days mode
                 data = get_cost_data(days=days, filter_region=filter_region, hide_account=hide_account)
@@ -83,9 +84,10 @@ def output_cost_data_text(days: int = 30, hide_account: bool = False, force_refr
             if filter_region != 'global':  # Breakdowns not available for global
                 try:
                     if start_date is not None and end_date is not None:
-                        # Use current month mode
-                        ec2_breakdown_data = get_ec2_daily_breakdown(days=days, filter_region=filter_region, month='current')
-                        ebs_breakdown_data = get_ebs_daily_breakdown(days=days, filter_region=filter_region, month='current')
+                        # Use specific month mode
+                        month_str = start_date.strftime('%Y-%m')
+                        ec2_breakdown_data = get_ec2_daily_breakdown(days=days, filter_region=filter_region, month=month_str)
+                        ebs_breakdown_data = get_ebs_daily_breakdown(days=days, filter_region=filter_region, month=month_str)
                     else:
                         # Use days mode
                         ec2_breakdown_data = get_ec2_daily_breakdown(days=days, filter_region=filter_region)
@@ -158,15 +160,10 @@ def output_cost_data_text(days: int = 30, hide_account: bool = False, force_refr
                 if service_name == 'EC2 - Other':
                     breakdown_items = []
                     
-                    # Collect EBS breakdown first
+                    # EBS breakdown now captures everything from EC2-Other
                     if (ebs_breakdown_data and 'breakdown' in ebs_breakdown_data and 
                         ebs_breakdown_data['breakdown']):
                         breakdown_items.extend(ebs_breakdown_data['breakdown'])
-                    
-                    # Then collect EC2 breakdown
-                    if (ec2_breakdown_data and 'breakdown' in ec2_breakdown_data and 
-                        ec2_breakdown_data['breakdown']):
-                        breakdown_items.extend(ec2_breakdown_data['breakdown'])
                     
                     # Display breakdown items with tree formatting
                     for j, breakdown_item in enumerate(breakdown_items):
@@ -177,7 +174,12 @@ def output_cost_data_text(days: int = 30, hide_account: bool = False, force_refr
                         is_last_breakdown = (j == len(breakdown_items) - 1)
                         breakdown_prefix = "└──" if is_last_breakdown else "├──"
                         
-                        print(f"    {breakdown_prefix} {category:<47}    {breakdown_prefix} {item_cost:>8.2f}")
+                        # Show more decimal places for very small costs
+                        if item_cost < 0.01:
+                            cost_str = f"{item_cost:>8.4f}"
+                        else:
+                            cost_str = f"{item_cost:>8.2f}"
+                        print(f"    {breakdown_prefix} {category:<47}    {breakdown_prefix} {cost_str}")
             print("=" * 74)
             print(f"TOTAL COST: ${total_cost:>8.2f}")
             print("=" * 74)
@@ -273,6 +275,8 @@ Environment Variables:
                        help='Launch web interface (default: text output)')
     parser.add_argument('--days', type=int, default=None,
                        help='Number of days for cost report (default: current month, text mode only)')
+    parser.add_argument('--month', type=str, default=None,
+                       help='Specific month for cost report (format: YYYY-MM, e.g., 2025-07, text mode only)')
     parser.add_argument('--force-refresh', action='store_true',
                        help='Force fresh data fetch, bypassing cache')
     
@@ -415,23 +419,60 @@ Environment Variables:
         # Convert AWS region to filter region format
         filter_region = 'all' if not args.aws_region else args.aws_region
         
-        # Default to current month if no days specified
-        if args.days is None:
-            # Calculate current month range
+        # Validate that only one time option is specified
+        if sum(bool(x) for x in [args.days, args.month]) > 1:
+            print("Error: Cannot specify both --days and --month options")
+            sys.exit(1)
+        
+        if args.month:
+            # Parse and validate month format (YYYY-MM)
+            try:
+                from datetime import datetime
+                import calendar
+                
+                year, month = args.month.split('-')
+                year = int(year)
+                month = int(month)
+                
+                if not (1 <= month <= 12):
+                    raise ValueError("Month must be between 1 and 12")
+                
+                # Calculate month range
+                start_of_month = datetime(year, month, 1)
+                _, days_in_month = calendar.monthrange(year, month)
+                end_of_month = datetime(year, month, days_in_month)
+                
+                output_cost_data_text(
+                    days=days_in_month,
+                    hide_account=args.hide_acct,
+                    force_refresh=args.force_refresh,
+                    filter_region=filter_region,
+                    start_date=start_of_month,
+                    end_date=end_of_month
+                )
+            except ValueError as e:
+                print(f"Error: Invalid month format '{args.month}'. Use YYYY-MM format (e.g., 2025-07)")
+                sys.exit(1)
+        elif args.days is None:
+            # Default to full current month if no options specified
             from datetime import datetime
+            import calendar
+            
             now = datetime.now()
             start_of_month = now.replace(day=1)
-            days_in_current_month = (now - start_of_month).days + 1
+            _, days_in_month = calendar.monthrange(now.year, now.month)
+            end_of_month = datetime(now.year, now.month, days_in_month)
             
             output_cost_data_text(
-                days=days_in_current_month, 
+                days=days_in_month, 
                 hide_account=args.hide_acct, 
                 force_refresh=args.force_refresh, 
                 filter_region=filter_region,
                 start_date=start_of_month,
-                end_date=now
+                end_date=end_of_month
             )
         else:
+            # Use specified days
             output_cost_data_text(
                 days=args.days, 
                 hide_account=args.hide_acct, 

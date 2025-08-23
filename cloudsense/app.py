@@ -615,24 +615,25 @@ def get_ebs_daily_breakdown(days: int = 30, specific_date: str = None, month: st
         
         response = client.get_cost_and_usage(**request_params)
         
-        # Process the response - capture ALL EBS usage types
-        ebs_costs = {}
+        # Process the response - capture EVERYTHING that contributes to EC2-Other
+        ec2_other_costs = {}
         
         for result in response['ResultsByTime']:
             for group in result['Groups']:
                 service = group['Keys'][0]
                 usage_type = group['Keys'][1]
-                cost = float(group['Metrics']['BlendedCost']['Amount'])
                 
-                # Capture ALL EBS-related usage types with meaningful costs
-                if cost >= 0.005 and 'EBS:' in usage_type:
-                    # Use the actual usage type name, cleaned up
-                    clean_type = usage_type.replace('EBS:', '').strip()
-                    display_name = f'EBS {clean_type}'
-                    ebs_costs[display_name] = ebs_costs.get(display_name, 0) + cost
+                # Only use BlendedCost metric and ensure it's actually a cost value
+                if 'BlendedCost' in group['Metrics']:
+                    cost = float(group['Metrics']['BlendedCost']['Amount'])
+                    # Capture items from EC2-Other and Amazon Elastic Block Store services
+                    ec2_other_services = ['EC2 - Other', 'Amazon Elastic Block Store']
+                    if cost > 0.0001 and service in ec2_other_services:
+                        # Use the raw usage type as the display name
+                        ec2_other_costs[usage_type] = ec2_other_costs.get(usage_type, 0) + cost
         
         breakdown = [{'category': cat, 'cost': cost} 
-                    for cat, cost in sorted(ebs_costs.items(), key=lambda x: x[1], reverse=True)]
+                    for cat, cost in sorted(ec2_other_costs.items(), key=lambda x: x[1], reverse=True)]
         return {'breakdown': breakdown}
         
     except Exception as e:
@@ -696,7 +697,7 @@ def get_ec2_daily_breakdown(days: int = 30, specific_date: str = None, month: st
                 cost = float(group['Metrics']['BlendedCost']['Amount'])
                 
                 # Only capture usage types that belong to EC2-related services
-                if cost >= 0.005 and 'EBS:' not in usage_type and 'BoxUsage' not in usage_type:
+                if cost >= 0.0001 and 'EBS:' not in usage_type and 'BoxUsage' not in usage_type:
                     # Filter to only EC2-related services
                     if service in ['Amazon Elastic Compute Cloud - Compute', 'EC2 - Other', 'Amazon Elastic Compute Cloud NatGateway']:
                         # Use the actual usage type name as the display name
