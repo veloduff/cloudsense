@@ -591,46 +591,34 @@ def get_ebs_daily_breakdown(days: int = 30, specific_date: str = None, month: st
         client = get_ce_client()
         start_date, end_date = parse_date_params(days, specific_date, month)
         
+        # Use the exact same filter as the AWS CLI command
         request_params = {
             'TimePeriod': {
                 'Start': start_date.strftime('%Y-%m-%d'),
                 'End': end_date.strftime('%Y-%m-%d')
             },
-            'Granularity': 'DAILY',
+            'Granularity': 'MONTHLY',
             'Metrics': ['BlendedCost'],
-            'GroupBy': [
-                {'Type': 'DIMENSION', 'Key': 'SERVICE'},
-                {'Type': 'DIMENSION', 'Key': 'USAGE_TYPE'}
-            ]
-        }
-        
-        # Add region filter if specified (skip for 'all', 'global', or empty values)
-        if filter_region and filter_region not in ['all', 'global', '']:
-            request_params['Filter'] = {
+            'GroupBy': [{'Type': 'DIMENSION', 'Key': 'USAGE_TYPE'}],
+            'Filter': {
                 'Dimensions': {
-                    'Key': 'REGION',
-                    'Values': [filter_region]
+                    'Key': 'SERVICE',
+                    'Values': ['EC2 - Other']
                 }
             }
+        }
         
         response = client.get_cost_and_usage(**request_params)
         
-        # Process the response - capture EVERYTHING that contributes to EC2-Other
+        # Process the response - capture ALL EC2-Other usage types
         ec2_other_costs = {}
         
         for result in response['ResultsByTime']:
             for group in result['Groups']:
-                service = group['Keys'][0]
-                usage_type = group['Keys'][1]
-                
-                # Only use BlendedCost metric and ensure it's actually a cost value
-                if 'BlendedCost' in group['Metrics']:
-                    cost = float(group['Metrics']['BlendedCost']['Amount'])
-                    # Capture items from EC2-Other and Amazon Elastic Block Store services
-                    ec2_other_services = ['EC2 - Other', 'Amazon Elastic Block Store']
-                    if cost > 0.0001 and service in ec2_other_services:
-                        # Use the raw usage type as the display name
-                        ec2_other_costs[usage_type] = ec2_other_costs.get(usage_type, 0) + cost
+                usage_type = group['Keys'][0]
+                cost = float(group['Metrics']['BlendedCost']['Amount'])
+                if cost > 0:
+                    ec2_other_costs[usage_type] = ec2_other_costs.get(usage_type, 0) + cost
         
         breakdown = [{'category': cat, 'cost': cost} 
                     for cat, cost in sorted(ec2_other_costs.items(), key=lambda x: x[1], reverse=True)]
