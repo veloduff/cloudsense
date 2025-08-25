@@ -409,6 +409,12 @@ body {
     transform: none;
 }
 
+.service-item-flex {
+    display: flex;
+    flex-direction: column;
+    min-height: 60px;
+}
+
 .alert { 
     padding: var(--space-4); 
     border-radius: var(--radius-md); 
@@ -570,6 +576,10 @@ button:disabled {
     display: grid; 
     grid-template-columns: 1fr 1fr; 
     gap: var(--space-10);
+}
+
+.breakdowns-single {
+    display: block;
 }
 
 .breakdown-section h3 {

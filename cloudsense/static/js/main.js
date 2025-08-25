@@ -566,10 +566,9 @@ async function refreshData() {
             updateHeaderInfo(data);
         } else {
             // Normal flow for all other regions
-            const [billingData, ebsData, ec2Data] = await Promise.all([
+            const [billingData, ec2Data] = await Promise.all([
                 fetchBillingData(),
-                fetchEbsBreakdown(),
-                fetchEc2Breakdown()
+                fetchEbsBreakdown()
             ]);
             
             const data = billingData;
@@ -579,7 +578,6 @@ async function refreshData() {
             }
             
             document.getElementById('breakdowns').style.display = 'block';
-            updateEbsList(ebsData);
             updateEc2List(ec2Data);
             
             if (data.error) {
@@ -703,9 +701,9 @@ function updateEc2List(data) {
     ec2Div.innerHTML = breakdown.map((item, index) => {
         const color = serviceColors[index % serviceColors.length];
         return `
-            <div class="service-item" style="border-left-color: ${color};">
-                <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">${escapeHtml(item.category)}</div>
-                <div style="font-size: 16px; color: #1d4ed8; font-weight: 700;">${formatCurrency(item.cost)}</div>
+            <div class="service-item service-item-flex" style="border-left-color: ${color};">
+                <div style="font-size: 14px; font-weight: 600; flex-grow: 1;">${escapeHtml(item.category)}</div>
+                <div style="font-size: 16px; color: #1d4ed8; font-weight: 700; margin-top: auto;">${formatCurrency(item.cost)}</div>
             </div>
         `;
     }).join('');
