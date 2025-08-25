@@ -608,6 +608,25 @@ def get_ebs_daily_breakdown(days: int = 30, specific_date: str = None, month: st
             }
         }
         
+        # Add region filter if specified (combine with service filter)
+        if filter_region and filter_region not in ['all', 'global', '']:
+            request_params['Filter'] = {
+                'And': [
+                    {
+                        'Dimensions': {
+                            'Key': 'SERVICE',
+                            'Values': ['EC2 - Other']
+                        }
+                    },
+                    {
+                        'Dimensions': {
+                            'Key': 'REGION',
+                            'Values': [filter_region]
+                        }
+                    }
+                ]
+            }
+        
         response = client.get_cost_and_usage(**request_params)
         
         # Process the response - capture ALL EC2-Other usage types
