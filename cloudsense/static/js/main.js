@@ -184,10 +184,20 @@ async function loadRegions() {
         const regions = await response.json();
         const select = document.getElementById('regionFilter');
         
-        regions.forEach(region => {
+        // Sort regions to put 'global' at the top (after 'all')
+        const sortedRegions = regions.sort((a, b) => {
+            if (a === 'all') return -1;
+            if (b === 'all') return 1;
+            if (a === 'global') return -1;
+            if (b === 'global') return 1;
+            return a.localeCompare(b);
+        });
+        
+        sortedRegions.forEach(region => {
             const option = document.createElement('option');
             option.value = region;
-            option.textContent = region;
+            // Change display name for global
+            option.textContent = region === 'global' ? 'Global Services' : region;
             select.appendChild(option);
         });
     } catch (error) {
