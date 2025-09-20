@@ -68,21 +68,25 @@ def check_aws_auth():
     try:
         caller_id = get_aws_session().client('sts').get_caller_identity()
         logger.debug(f"AWS authentication successful for account: {caller_id.get('Account', 'Unknown')}")
-        return True
+        return True, None
     except NoCredentialsError:
         logger.error("AWS credentials not found")
-        return False
+        return False, "no_credentials"
     except ClientError as e:
         logger.error(f"AWS authentication failed: {e}")
-        return False
+        return False, "client_error"
     except Exception as e:
+        error_msg = str(e)
         logger.error(f"Unexpected error during AWS authentication: {e}")
-        return False
+        if "SSO session" in error_msg and "expired" in error_msg:
+            return False, "sso_expired"
+        return False, "unknown"
 
 
 def require_auth():
     """Decorator to require AWS authentication"""
-    if not check_aws_auth():
+    auth_status, _ = check_aws_auth()
+    if not auth_status:
         abort(401)
 
 

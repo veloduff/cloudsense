@@ -60,9 +60,18 @@ def output_cost_data_text(days: int = 30, hide_account: bool = False, force_refr
                     cache_status = "FRESH"
             
             # Check AWS authentication
-            if not check_aws_auth():
-                print("ERROR: AWS credentials not configured or invalid")
-                print("Please run 'aws configure' or set AWS environment variables")
+            auth_status, error_type = check_aws_auth()
+            if not auth_status:
+                if error_type == "sso_expired":
+                    print("ERROR: AWS SSO session has expired")
+                    print("Please run 'aws sso login' to refresh your session")
+                elif error_type == "no_credentials":
+                    print("ERROR: AWS credentials not found")
+                    print("Please run 'aws configure' or set AWS environment variables")
+                else:
+                    print("ERROR: AWS credentials not configured or invalid")
+                    print("Please run 'aws configure' or set AWS environment variables")
+                    print("For SSO users, try 'aws sso login'")
                 sys.exit(1)
             
             # Get cost data for specified region
